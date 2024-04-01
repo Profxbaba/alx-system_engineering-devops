@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+# Configures Nginx to add a custom HTTP response header on web-01 and web-02.
+
+# Define web-01 and web-02 server IPs and usernames
+WEB01_IP="52.87.219.133"
+WEB02_IP="34.224.6.1"
+USERNAME="ubuntu"
+
+# Define the custom header name
+CUSTOM_HEADER_NAME="X-Served-By"
+
+# Function to configure Nginx on a server
+configure_nginx() {
+    local ip="$1"
+    local username="$2"
+
+    # SSH into the server and configure Nginx
+    ssh -o "StrictHostKeyChecking=no" "$username@$ip" bash << EOF
+    # Install Nginx
+    sudo apt-get update
+    sudo apt-get install -y nginx
+
+    # Define the custom header value
+    CUSTOM_HEADER_VALUE=\$(hostname)
+
+    # Configure Nginx to add the custom header
+    echo "Adding custom HTTP response header to Nginx configuration..."
+    sudo bash -c "cat << EOL > /etc/nginx/sites-available/default
+    server {
+        listen 80 default_server;
+        listen [::]:80 default_server;
+
+        root /var/www/html;
+        index index.html index.htm index.nginx-debian.html;
+
+        server_name _;
+
+        location / {
+            try_files \$uri \$uri/ =404;
+            add_header $CUSTOM_HEADER_NAME \$CUSTOM_HEADER_VALUE;
+        }
+    }
+    EOL"
+
+    # Restart Nginx to apply the changes
+    sudo systemctl restart nginx
+
+    echo "Nginx configured successfully with custom HTTP response header on \$HOSTNAME."
+EOF
+}
+
+# Configure Nginx on web-01
+configure_nginx "$WEB01_IP" "$USERNAME"
+
+# Configure Nginx on web-02
+configure_nginx "$WEB02_IP" "$USERNAME"
+
+echo "Nginx configured successfully with custom HTTP response header on web-01 and web-02 servers."
