@@ -1,58 +1,28 @@
 #!/usr/bin/env bash
-# Configures Nginx to add a custom HTTP response header on web-01 and web-02.
+# Customizing a 404-error_page
 
-# Define web-01 and web-02 server IPs and usernames
-WEB01_IP="52.87.219.133"
-WEB02_IP="34.224.6.1"
-USERNAME="ubuntu"
+# Updating Packages before performing installations
+sudo apt-get update
+sudo apt-get install -y nginx
 
-# Define the custom header name
-CUSTOM_HEADER_NAME="X-Served-By"
+# Creating an index.html page
+echo "Hello World!" | sudo tee /var/www/html/index.html
 
-# Function to configure Nginx on a server
-configure_nginx() {
-    local ip="$1"
-    local username="$2"
+# Performing a "moved permanently redirection" (301)
+new_string="server_name _;\n\trewrite ^\/redirect_me https:\/\/github.com\/besthor permanent;"
+sudo sed -i "s/server_name _;/$new_string/" /etc/nginx/sites-enabled/default
 
-    # SSH into the server and configure Nginx
-    ssh -o "StrictHostKeyChecking=no" "$username@$ip" bash << EOF
-    # Install Nginx
-    sudo apt-get update
-    sudo apt-get install -y nginx
+# Creating a 404 Custom error page
+echo "Ceci n'est pas une page" | sudo tee /var/www/html/404.html
+new_string="listen 80 default_server;\n\terror_page 404 \/404.html;\n\tlocation = \/404.html {\n\t\troot \/var\/www\/html;\n\t\tinternal;\n\t}"
 
-    # Define the custom header value
-    CUSTOM_HEADER_VALUE=\$(hostname)
+sudo sed -i "s/listen 80 default_server;/$new_string/" /etc/nginx/sites-enabled/default
 
-    # Configure Nginx to add the custom header
-    echo "Adding custom HTTP response header to Nginx configuration..."
-    sudo bash -c "cat << EOL > /etc/nginx/sites-available/default
-    server {
-        listen 80 default_server;
-        listen [::]:80 default_server;
+# Creating an HTTP response header
+sudo sed -i "/server_name _/a add_header X-Served-By $HOSTNAME;" /etc/nginx/sites-enabled/default
 
-        root /var/www/html;
-        index index.html index.htm index.nginx-debian.html;
+# Testing configurations for syntax errors
+sudo nginx -t
 
-        server_name _;
-
-        location / {
-            try_files \$uri \$uri/ =404;
-            add_header $CUSTOM_HEADER_NAME \$CUSTOM_HEADER_VALUE;
-        }
-    }
-    EOL"
-
-    # Restart Nginx to apply the changes
-    sudo systemctl restart nginx
-
-    echo "Nginx configured successfully with custom HTTP response header on \$HOSTNAME."
-EOF
-}
-
-# Configure Nginx on web-01
-configure_nginx "$WEB01_IP" "$USERNAME"
-
-# Configure Nginx on web-02
-configure_nginx "$WEB02_IP" "$USERNAME"
-
-echo "Nginx configured successfully with custom HTTP response header on web-01 and web-02 servers."
+# Restart nginx after implementing changes
+sudo service nginx restart
