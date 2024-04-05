@@ -1,9 +1,5 @@
 #!/usr/bin/env bash
-# Ensure Nginx listens on port 80
-
-sudo systemctl start nginx
-sleep 1
-sudo sed -i '/listen 80 default_server;/s/# *//' /etc/nginx/sites-available/default
-sudo systemctl restart nginx
-sleep 1
-sudo netstat -tuln | grep ":80 " >/dev/null || echo "Nginx is not running"
+# same as task 0 but -f added to ln to forcefully remove the file if it exists
+ln -sf /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
+sudo service nginx restart
+rm /run/nginx.pid
