@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# This script ensures Nginx listens on port 80
+
+# Check if Nginx is running
+if ! systemctl is-active --quiet nginx; then
+    echo "Nginx is not running. Starting Nginx..."
+    sudo systemctl start nginx
+    sleep 1
+fi
+
+# Check if Nginx listens on port 80
+if ! sudo netstat -tuln | grep -q ":80 "; then
+    echo "Nginx is not listening on port 80. Fixing configuration..."
+    # Ensure Nginx listens on port 80 by modifying the default configuration
+    sudo sed -i '/listen 80 default_server;/s/# *//' /etc/nginx/sites-available/default
+    # Restart Nginx to apply changes
+    sudo systemctl restart nginx
+    sleep 1
+    # Check if Nginx now listens on port 80
+    if sudo netstat -tuln | grep -q ":80 "; then
+        echo "Nginx now listens on port 80."
+    else
+        echo "Failed to make Nginx listen on port 80."
+        exit 1
+    fi
+else
+    echo "Nginx already listens on port 80."
+fi
