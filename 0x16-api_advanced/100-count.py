@@ -1,69 +1,50 @@
 #!/usr/bin/python3
-"""
-Module for counting occurrences of given keywords in hot articles of a subreddit.
-"""
+""" Module for a function that queries the Reddit API recursively."""
+
 
 import requests
 
-def count_words(subreddit, word_list, hot_list=None, after=None):
+
+def count_words(subreddit, word_list, after='', word_dict={}):
+    """ A function that queries the Reddit API parses the title of
+    all hot articles, and prints a sorted count of given keywords
+    (case-insensitive, delimited by spaces.
+    Javascript should count as javascript, but java should not).
+    If no posts match or the subreddit is invalid, it prints nothing.
     """
-    Queries the Reddit API recursively and counts occurrences of given keywords
-    in the titles of all hot articles for a given subreddit.
 
-    Args:
-        subreddit (str): The name of the subreddit.
-        word_list (list): A list containing the keywords to count occurrences of.
-        hot_list (list): A list containing the titles of hot articles.
-        after (str): A token for pagination.
+    if not word_dict:
+        for word in word_list:
+            if word.lower() not in word_dict:
+                word_dict[word.lower()] = 0
 
-    Returns:
-        dict: A dictionary containing the counts of each keyword.
-    """
-    if hot_list is None:
-        hot_list = []
-
-    url = 'https://www.reddit.com/r/{}/hot.json'.format(subreddit)
-    headers = {'User-Agent': 'Mozilla/5.0'}
-    params = {'limit': 100, 'after': after}
-    response = requests.get(url, headers=headers, params=params,
-                            allow_redirects=False)
-
-    if response.status_code == 200:
-        data = response.json().get('data', {})
-        children = data.get('children', [])
-        after = data.get('after', None)
-        if children:
-            for post in children:
-                hot_list.append(post.get('data', {}).get('title'))
-            if after:
-                count_words(subreddit, word_list, hot_list, after)
-        return count_occurrences(hot_list, word_list)
-    else:
+    if after is None:
+        wordict = sorted(word_dict.items(), key=lambda x: (-x[1], x[0]))
+        for word in wordict:
+            if word[1]:
+                print('{}: {}'.format(word[0], word[1]))
         return None
 
-def count_occurrences(hot_list, word_list):
-    """
-    Counts occurrences of given keywords in the titles of hot articles.
+    url = 'https://www.reddit.com/r/{}/hot/.json'.format(subreddit)
+    header = {'user-agent': 'redquery'}
+    parameters = {'limit': 100, 'after': after}
+    response = requests.get(url, headers=header, params=parameters,
+                            allow_redirects=False)
 
-    Args:
-        hot_list (list): A list containing the titles of hot articles.
-        word_list (list): A list containing the keywords to count occurrences of.
+    if response.status_code != 200:
+        return None
 
-    Returns:
-        dict: A dictionary containing the counts of each keyword.
-    """
-    word_count = {}
-    for word in word_list:
-        count = sum(1 for title in hot_list if ' ' + word.lower() + ' ' in title.lower())
-        if count > 0:
-            word_count[word.lower()] = count
-    return word_count
+    try:
+        hot = response.json()['data']['children']
+        aft = response.json()['data']['after']
+        for post in hot:
+            title = post['data']['title']
+            lower = [word.lower() for word in title.split(' ')]
 
-if __name__ == "__main__":
-    subreddit = input("Enter the name of the subreddit: ")
-    word_list = input("Enter the keywords separated by spaces: ").split()
-    keyword_counts = count_words(subreddit, word_list)
-    if keyword_counts:
-        sorted_counts = sorted(keyword_counts.items(), key=lambda x: (-x[1], x[0]))
-        for keyword, count in sorted_counts:
-            print("{}: {}".format(keyword, count))
+            for word in word_dict.keys():
+                word_dict[word] += lower.count(word)
+
+    except Exception:
+        return None
+
+    count_words(subreddit, word_list, aft, word_dict)
