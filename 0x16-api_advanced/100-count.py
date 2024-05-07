@@ -5,7 +5,7 @@ Module for counting occurrences of given keywords in hot articles of a subreddit
 
 import requests
 
-def count_words(subreddit, word_list, hot_list=[], after=None):
+def count_words(subreddit, word_list, hot_list=None, after=None):
     """
     Queries the Reddit API recursively and counts occurrences of given keywords
     in the titles of all hot articles for a given subreddit.
@@ -19,6 +19,9 @@ def count_words(subreddit, word_list, hot_list=[], after=None):
     Returns:
         dict: A dictionary containing the counts of each keyword.
     """
+    if hot_list is None:
+        hot_list = []
+
     url = 'https://www.reddit.com/r/{}/hot.json'.format(subreddit)
     headers = {'User-Agent': 'Mozilla/5.0'}
     params = {'limit': 100, 'after': after}
